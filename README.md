@@ -1,2 +1,2 @@
 # blockchain-go
-Creattion of a blockchain with Golang
+Creation of a blockchain with Golang
