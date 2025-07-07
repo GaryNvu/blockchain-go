@@ -2,36 +2,37 @@ package blockchain
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/gob"
 	"log"
+	"time"
 )
 
 // Represents a block in the blockchain
 type Block struct {
+	Timestamp    int64          // Timestamp of when the block was created
 	Hash         []byte         // Hash of the current block
 	Transactions []*Transaction // List of transactions contained in the block
 	PrevHash     []byte         // Hash of the previous block in the chain
 	Nonce        int            // Nonce used for the proof of work algorithm
+	Height       int            // Height of the block in the blockchain
 }
 
 // Creates a Merkle root of all the block's transactions
 // Returns a byte slice containing the hash of all transactions
 func (b *Block) HashTransactions() []byte {
 	var txHashes [][]byte
-	var txHash [32]byte
 
 	for _, tx := range b.Transactions {
-		txHashes = append(txHashes, tx.ID)
+		txHashes = append(txHashes, tx.Serialize())
 	}
-	txHash = sha256.Sum256(bytes.Join(txHashes, []byte{}))
-	return txHash[:]
+	tree := NewMerkleTree(txHashes)
+	return tree.RootNode.Data
 }
 
 // Creates a new block with the given transactions and previous block hash
 // It performs proof of work and returns the newly created block
-func CreateBlock(txs []*Transaction, prevHash []byte) *Block {
-	block := &Block{[]byte{}, txs, prevHash, 0}
+func CreateBlock(txs []*Transaction, prevHash []byte, height int) *Block {
+	block := &Block{time.Now().Unix(), []byte{}, txs, prevHash, 0, height}
 	pow := NewProofOfWork(block)
 	nonce, hash := pow.Run()
 
@@ -43,7 +44,7 @@ func CreateBlock(txs []*Transaction, prevHash []byte) *Block {
 
 // Creates the first block of the blockchain with a given coinbase transaction
 func Genesis(coinbase *Transaction) *Block {
-	return CreateBlock([]*Transaction{coinbase}, []byte{})
+	return CreateBlock([]*Transaction{coinbase}, []byte{}, 0)
 }
 
 // Converts the block into a byte slice using gob encoding

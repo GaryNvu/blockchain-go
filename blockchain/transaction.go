@@ -31,6 +31,15 @@ func (tx *Transaction) Serialize() []byte {
 	return encoded.Bytes()
 }
 
+func DeserializeTransaction(data []byte) Transaction {
+	var transaction Transaction
+
+	decoder := gob.NewDecoder(bytes.NewReader(data))
+	err := decoder.Decode(&transaction)
+	Handle(err)
+	return transaction
+}
+
 func (tx *Transaction) Hash() []byte {
 	var hash [32]byte
 
@@ -42,28 +51,19 @@ func (tx *Transaction) Hash() []byte {
 	return hash[:]
 }
 
-// Generate a unique ID for the transaction by hashing its contents
-func (tx *Transaction) SetID() {
-	var encoded bytes.Buffer
-	var hash [32]byte
-
-	encode := gob.NewEncoder(&encoded)
-	err := encode.Encode(tx)
-	Handle(err)
-
-	hash = sha256.Sum256(encoded.Bytes())
-	tx.ID = hash[:]
-}
-
 // Create a coinbase transaction with the given recipient and optional data
 func CoinbaseTx(to, data string) *Transaction {
 	if data == "" {
-		data = fmt.Sprintf("Coins to %s", to)
+		randData := make([]byte, 24)
+		_, err := rand.Read(randData)
+		Handle(err)
+		data = fmt.Sprintf("%x", randData)
 	}
+
 	txIn := TXInput{[]byte{}, -1, nil, []byte(data)}
-	txOut := NewTXOutput(100, to)
+	txOut := NewTXOutput(20, to)
 	tx := Transaction{nil, []TXInput{txIn}, []TXOutput{*txOut}}
-	tx.SetID()
+	tx.ID = tx.Hash()
 
 	return &tx
 }
@@ -159,19 +159,15 @@ func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 	return true
 }
 
-func NewTransaction(from, to string, amount int, UTXO *UTXOSet) *Transaction {
+func NewTransaction(w *wallet.Wallet, to string, amount int, UTXO *UTXOSet) *Transaction {
 	var inputs []TXInput
 	var outputs []TXOutput
 
-	wallets, err := wallet.CreateWallets()
-	Handle(err)
-	w := wallets.GetWallet(from)
 	pubKeyHash := wallet.PublicKeyHash(w.PublicKey)
-
 	acc, validOutputs := UTXO.FindSpendableOutputs(pubKeyHash, amount)
 
 	if acc < amount {
-		log.Panic("ERROR: Not enough funds")
+		log.Panic("Error: not enough funds")
 	}
 
 	for txid, outs := range validOutputs {
@@ -184,7 +180,10 @@ func NewTransaction(from, to string, amount int, UTXO *UTXOSet) *Transaction {
 		}
 	}
 
+	from := fmt.Sprintf("%s", w.Address())
+
 	outputs = append(outputs, *NewTXOutput(amount, to))
+
 	if acc > amount {
 		outputs = append(outputs, *NewTXOutput(acc-amount, from))
 	}

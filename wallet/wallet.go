@@ -6,8 +6,8 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/json"
 	"log"
+	"math/big"
 
 	"golang.org/x/crypto/ripemd160"
 )
@@ -22,6 +22,52 @@ type Wallet struct {
 	PublicKey  []byte           // Public key for verifying signatures
 }
 
+// Structure pour la sérialisation
+type SerializableWallet struct {
+	PrivateKeyD []byte `gob:"private_key_d"`
+	PublicKeyX  []byte `gob:"public_key_x"`
+	PublicKeyY  []byte `gob:"public_key_y"`
+	PublicKey   []byte `gob:"public_key"`
+}
+
+// Convertit un Wallet en structure sérialisable
+func (w *Wallet) ToSerializable() SerializableWallet {
+	return SerializableWallet{
+		PrivateKeyD: w.PrivateKey.D.Bytes(),
+		PublicKeyX:  w.PrivateKey.PublicKey.X.Bytes(),
+		PublicKeyY:  w.PrivateKey.PublicKey.Y.Bytes(),
+		PublicKey:   w.PublicKey,
+	}
+}
+
+// Crée un Wallet à partir d'une structure sérialisable
+func FromSerializable(sw SerializableWallet) *Wallet {
+	curve := elliptic.P256()
+	
+	d := big.NewInt(0)
+	d.SetBytes(sw.PrivateKeyD)
+	
+	x := big.NewInt(0)
+	x.SetBytes(sw.PublicKeyX)
+	
+	y := big.NewInt(0)
+	y.SetBytes(sw.PublicKeyY)
+	
+	privateKey := ecdsa.PrivateKey{
+		PublicKey: ecdsa.PublicKey{
+			Curve: curve,
+			X:     x,
+			Y:     y,
+		},
+		D: d,
+	}
+	
+	return &Wallet{
+		PrivateKey: privateKey,
+		PublicKey:  sw.PublicKey,
+	}
+}
+
 func (w Wallet) Address() []byte {
 	pubHash := PublicKeyHash(w.PublicKey)
 
@@ -31,22 +77,6 @@ func (w Wallet) Address() []byte {
 	address := Base58Encode(fullHash)                       // Encode the full hash using base58
 
 	return address
-}
-
-func (w Wallet) MarshalJSON() ([]byte, error) {
-	mapStringAny := map[string]any{
-		"PrivateKey": map[string]any{
-			"D": w.PrivateKey.D,
-			"PublicKey": map[string]any{
-				"X": w.PrivateKey.PublicKey.X,
-				"Y": w.PrivateKey.PublicKey.Y,
-			},
-			"X": w.PrivateKey.X,
-			"Y": w.PrivateKey.Y,
-		},
-		"PublicKey": w.PublicKey,
-	}
-	return json.Marshal(mapStringAny)
 }
 
 func ValidateAddress(address string) bool {

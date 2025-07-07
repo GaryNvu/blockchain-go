@@ -1,23 +1,23 @@
 package wallet
 
 import (
-	"encoding/json"
+	"bytes"
+	"encoding/gob"
 	"fmt"
-	"log"
 	"os"
 )
 
-const walletFile = "./tmp/wallets.data"
+const walletFile = "./tmp/wallets_%s.data"
 
 type Wallets struct {
 	Wallets map[string]*Wallet
 }
 
-func CreateWallets() (*Wallets, error) {
+func CreateWallets(nodeId string) (*Wallets, error) {
 	wallets := Wallets{}
 	wallets.Wallets = make(map[string]*Wallet)
 
-	err := wallets.LoadFile()
+	err := wallets.LoadFile(nodeId)
 
 	return &wallets, err
 }
@@ -44,32 +44,52 @@ func (ws *Wallets) AddWallet() string {
 	return address
 }
 
-func (ws *Wallets) SaveFile() {
-	jsonData, err := json.Marshal(ws)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	err = os.WriteFile(walletFile, jsonData, 0666)
-	if err != nil {
-		log.Panic(err)
-	}
-}
-
-func (ws *Wallets) LoadFile() error {
+func (ws *Wallets) LoadFile(nodeId string) error {
+	walletFile := fmt.Sprintf(walletFile, nodeId)
 	if _, err := os.Stat(walletFile); os.IsNotExist(err) {
 		return err
 	}
 
 	fileContent, err := os.ReadFile(walletFile)
 	if err != nil {
-		log.Panic(err)
+		return err
 	}
 
-	err = json.Unmarshal(fileContent, ws)
+	// Charger les wallets sérialisables
+	var serializableWallets map[string]SerializableWallet
+	decoder := gob.NewDecoder(bytes.NewReader(fileContent))
+	err = decoder.Decode(&serializableWallets)
 	if err != nil {
-		log.Panic(err)
+		return err
+	}
+
+	// Convertir en wallets normaux
+	ws.Wallets = make(map[string]*Wallet)
+	for address, sw := range serializableWallets {
+		ws.Wallets[address] = FromSerializable(sw)
 	}
 
 	return nil
+}
+
+func (ws *Wallets) SaveFile(nodeId string) {
+	var content bytes.Buffer
+	walletFile := fmt.Sprintf(walletFile, nodeId)
+
+	// Convertir les wallets en structure sérialisable
+	serializableWallets := make(map[string]SerializableWallet)
+	for address, wallet := range ws.Wallets {
+		serializableWallets[address] = wallet.ToSerializable()
+	}
+
+	encoder := gob.NewEncoder(&content)
+	err := encoder.Encode(serializableWallets)
+	if err != nil {
+		panic(err)
+	}
+
+	err = os.WriteFile(walletFile, content.Bytes(), 0644)
+	if err != nil {
+		panic(err)
+	}
 }
