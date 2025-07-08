@@ -43,16 +43,16 @@ func (w *Wallet) ToSerializable() SerializableWallet {
 // Crée un Wallet à partir d'une structure sérialisable
 func FromSerializable(sw SerializableWallet) *Wallet {
 	curve := elliptic.P256()
-	
+
 	d := big.NewInt(0)
 	d.SetBytes(sw.PrivateKeyD)
-	
+
 	x := big.NewInt(0)
 	x.SetBytes(sw.PublicKeyX)
-	
+
 	y := big.NewInt(0)
 	y.SetBytes(sw.PublicKeyY)
-	
+
 	privateKey := ecdsa.PrivateKey{
 		PublicKey: ecdsa.PublicKey{
 			Curve: curve,
@@ -61,7 +61,7 @@ func FromSerializable(sw SerializableWallet) *Wallet {
 		},
 		D: d,
 	}
-	
+
 	return &Wallet{
 		PrivateKey: privateKey,
 		PublicKey:  sw.PublicKey,

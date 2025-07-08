@@ -24,6 +24,7 @@ func (cli *CommandLine) printUsage() {
 	fmt.Println(" listaddresses - Lists the addresses in our wallet file")
 	fmt.Println(" reindexutxo - Rebuilds the UTXO set")
 	fmt.Println(" startnode -miner ADDRESS - Start a node with ID specified in NODE_ID env. var. -miner enables mining")
+	fmt.Println(" web - Start web interface on http://localhost:8080")
 }
 
 func (cli *CommandLine) validateArgs() {
