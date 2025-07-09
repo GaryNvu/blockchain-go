@@ -103,7 +103,7 @@ func SendAddr(address string) {
 	payload := GobEncode(nodes)
 	request := append(CmdToBytes("addr"), payload...)
 
-	SendData(address, request)
+	SendData(address, request) // Ignore error for addr messages
 }
 
 func SendBlock(addr string, b *blockchain.Block) {
@@ -111,10 +111,10 @@ func SendBlock(addr string, b *blockchain.Block) {
 	payload := GobEncode(data)
 	request := append(CmdToBytes("block"), payload...)
 
-	SendData(addr, request)
+	SendData(addr, request) // Ignore error for block messages
 }
 
-func SendData(addr string, data []byte) {
+func SendData(addr string, data []byte) error {
 	conn, err := net.Dial(protocol, addr)
 
 	if err != nil {
@@ -129,7 +129,7 @@ func SendData(addr string, data []byte) {
 
 		KnownNodes = updatedNodes
 
-		return
+		return fmt.Errorf("node %s is not available", addr)
 	}
 
 	defer conn.Close()
@@ -138,6 +138,8 @@ func SendData(addr string, data []byte) {
 	if err != nil {
 		log.Panic(err)
 	}
+
+	return nil
 }
 
 func SendInv(address, kind string, items [][]byte) {
@@ -145,31 +147,30 @@ func SendInv(address, kind string, items [][]byte) {
 	payload := GobEncode(inventory)
 	request := append(CmdToBytes("inv"), payload...)
 
-	fmt.Printf("Sending inventory (%s) to %s\n", kind, address)
-	SendData(address, request)
+	SendData(address, request) // Ignore error for inv messages
 }
 
 func SendGetBlocks(address string) {
 	payload := GobEncode(GetBlocks{nodeAddress})
 	request := append(CmdToBytes("getblocks"), payload...)
 
-	SendData(address, request)
+	SendData(address, request) // Ignore error for getblocks messages
 }
 
 func SendGetData(address, kind string, id []byte) {
 	payload := GobEncode(GetData{nodeAddress, kind, id})
 	request := append(CmdToBytes("getdata"), payload...)
 
-	SendData(address, request)
+	SendData(address, request) // Ignore error for getdata messages
 }
 
-func SendTx(addr string, tnx *blockchain.Transaction) {
+func SendTx(addr string, tnx *blockchain.Transaction) error {
 	data := Tx{nodeAddress, tnx.Serialize()}
 	payload := GobEncode(data)
 	request := append(CmdToBytes("tx"), payload...)
 
 	fmt.Printf("Sending transaction %x to %s\n", tnx.ID, addr)
-	SendData(addr, request)
+	return SendData(addr, request)
 }
 
 func SendVersion(addr string, chain *blockchain.BlockChain) {
@@ -178,7 +179,7 @@ func SendVersion(addr string, chain *blockchain.BlockChain) {
 
 	request := append(CmdToBytes("version"), payload...)
 
-	SendData(addr, request)
+	SendData(addr, request) // Ignore error for version messages
 }
 
 func HandleAddr(request []byte) {
@@ -239,7 +240,7 @@ func HandleInv(request []byte, chain *blockchain.BlockChain) {
 		log.Panic(err)
 	}
 
-	fmt.Printf("Received inventory with %d %s from %s\n", len(payload.Items), payload.Type, payload.AddrFrom)
+	fmt.Printf("Recevied inventory with %d %s\n", len(payload.Items), payload.Type)
 
 	if payload.Type == "block" {
 		blocksInTransit = payload.Items
@@ -249,7 +250,7 @@ func HandleInv(request []byte, chain *blockchain.BlockChain) {
 
 		newInTransit := [][]byte{}
 		for _, b := range blocksInTransit {
-			if !bytes.Equal(b, blockHash) {
+			if bytes.Compare(b, blockHash) != 0 {
 				newInTransit = append(newInTransit, b)
 			}
 		}
@@ -260,7 +261,6 @@ func HandleInv(request []byte, chain *blockchain.BlockChain) {
 		txID := payload.Items[0]
 
 		if memoryPool[hex.EncodeToString(txID)].ID == nil {
-			fmt.Printf("Requesting transaction %x from %s\n", txID, payload.AddrFrom)
 			SendGetData(payload.AddrFrom, "tx", txID)
 		}
 	}
@@ -305,7 +305,7 @@ func HandleGetData(request []byte, chain *blockchain.BlockChain) {
 		txID := hex.EncodeToString(payload.ID)
 		tx := memoryPool[txID]
 
-		SendTx(payload.AddrFrom, &tx)
+		SendTx(payload.AddrFrom, &tx) // Ignore error for tx response
 	}
 }
 
@@ -324,19 +324,16 @@ func HandleTx(request []byte, chain *blockchain.BlockChain) {
 	tx := blockchain.DeserializeTransaction(txData)
 	memoryPool[hex.EncodeToString(tx.ID)] = tx
 
-	fmt.Printf("Received transaction %x from %s. Memory pool size: %d\n", tx.ID, payload.AddrFrom, len(memoryPool))
+	fmt.Printf("%s, %d", nodeAddress, len(memoryPool))
 
 	if nodeAddress == KnownNodes[0] {
-		fmt.Printf("Central node propagating transaction %x to other nodes\n", tx.ID)
 		for _, node := range KnownNodes {
 			if node != nodeAddress && node != payload.AddrFrom {
-				fmt.Printf("Propagating transaction %x to %s\n", tx.ID, node)
 				SendInv(node, "tx", [][]byte{tx.ID})
 			}
 		}
 	} else {
 		if len(memoryPool) >= 2 && len(mineAddress) > 0 {
-			fmt.Printf("Mining transactions from memory pool (size: %d)\n", len(memoryPool))
 			MineTx(chain)
 		}
 	}

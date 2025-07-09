@@ -24,7 +24,6 @@ func (cli *CommandLine) printUsage() {
 	fmt.Println(" listaddresses - Lists the addresses in our wallet file")
 	fmt.Println(" reindexutxo - Rebuilds the UTXO set")
 	fmt.Println(" startnode -miner ADDRESS - Start a node with ID specified in NODE_ID env. var. -miner enables mining")
-	fmt.Println(" web - Start web interface on http://localhost:8080")
 }
 
 func (cli *CommandLine) validateArgs() {
@@ -138,9 +137,6 @@ func (cli *CommandLine) send(from, to string, amount int, nodeID string, mineNow
 	if !wallet.ValidateAddress(from) {
 		log.Panic("Address is not Valid")
 	}
-	
-	fmt.Printf("Creating transaction: %s -> %s, amount: %d\n", from, to, amount)
-	
 	chain := blockchain.ContinueBlockChain(nodeID)
 	UTXOSet := blockchain.UTXOSet{chain}
 	defer chain.Database.Close()
@@ -151,20 +147,23 @@ func (cli *CommandLine) send(from, to string, amount int, nodeID string, mineNow
 	}
 	wallet := wallets.GetWallet(from)
 
-	fmt.Println("Creating new transaction...")
 	tx := blockchain.NewTransaction(&wallet, to, amount, &UTXOSet)
-	fmt.Printf("Transaction created with ID: %x\n", tx.ID)
-	
 	if mineNow {
-		fmt.Println("Mining transaction...")
+		fmt.Println("Mining transaction locally...")
 		cbTx := blockchain.CoinbaseTx(from, "")
 		txs := []*blockchain.Transaction{cbTx, tx}
 		block := chain.MineBlock(txs)
 		UTXOSet.Update(block)
-		fmt.Printf("Block mined with hash: %x\n", block.Hash)
+		fmt.Printf("Transaction mined successfully! Block hash: %x\n", block.Hash)
 	} else {
-		network.SendTx(network.KnownNodes[0], tx)
-		fmt.Println("send tx")
+		fmt.Println("Sending transaction to network...")
+		err := network.SendTx(network.KnownNodes[0], tx)
+		if err != nil {
+			fmt.Printf("Failed to send transaction: %v\n", err)
+			fmt.Println("Network nodes are not available. Use -mine flag to mine locally.")
+			return
+		}
+		fmt.Println("Transaction sent to network successfully!")
 	}
 
 	fmt.Println("Success!")
