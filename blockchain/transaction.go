@@ -164,7 +164,9 @@ func NewTransaction(w *wallet.Wallet, to string, amount int, UTXO *UTXOSet) *Tra
 	var outputs []TXOutput
 
 	pubKeyHash := wallet.PublicKeyHash(w.PublicKey)
+	fmt.Printf("Finding spendable outputs for address %s, amount needed: %d\n", w.Address(), amount)
 	acc, validOutputs := UTXO.FindSpendableOutputs(pubKeyHash, amount)
+	fmt.Printf("Found %d coins in spendable outputs\n", acc)
 
 	if acc < amount {
 		log.Panic("Error: not enough funds")

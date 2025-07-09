@@ -47,6 +47,7 @@ func ContinueBlockChain(nodeId string) *BlockChain {
 	var lastHash []byte
 
 	opts := badger.DefaultOptions(path)
+	opts.Logger = nil
 	opts.Dir = path
 	opts.ValueDir = path
 

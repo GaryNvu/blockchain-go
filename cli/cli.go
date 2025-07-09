@@ -138,6 +138,9 @@ func (cli *CommandLine) send(from, to string, amount int, nodeID string, mineNow
 	if !wallet.ValidateAddress(from) {
 		log.Panic("Address is not Valid")
 	}
+	
+	fmt.Printf("Creating transaction: %s -> %s, amount: %d\n", from, to, amount)
+	
 	chain := blockchain.ContinueBlockChain(nodeID)
 	UTXOSet := blockchain.UTXOSet{chain}
 	defer chain.Database.Close()
@@ -148,12 +151,17 @@ func (cli *CommandLine) send(from, to string, amount int, nodeID string, mineNow
 	}
 	wallet := wallets.GetWallet(from)
 
+	fmt.Println("Creating new transaction...")
 	tx := blockchain.NewTransaction(&wallet, to, amount, &UTXOSet)
+	fmt.Printf("Transaction created with ID: %x\n", tx.ID)
+	
 	if mineNow {
+		fmt.Println("Mining transaction...")
 		cbTx := blockchain.CoinbaseTx(from, "")
 		txs := []*blockchain.Transaction{cbTx, tx}
 		block := chain.MineBlock(txs)
 		UTXOSet.Update(block)
+		fmt.Printf("Block mined with hash: %x\n", block.Hash)
 	} else {
 		network.SendTx(network.KnownNodes[0], tx)
 		fmt.Println("send tx")

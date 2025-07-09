@@ -145,6 +145,7 @@ func SendInv(address, kind string, items [][]byte) {
 	payload := GobEncode(inventory)
 	request := append(CmdToBytes("inv"), payload...)
 
+	fmt.Printf("Sending inventory (%s) to %s\n", kind, address)
 	SendData(address, request)
 }
 
@@ -167,6 +168,7 @@ func SendTx(addr string, tnx *blockchain.Transaction) {
 	payload := GobEncode(data)
 	request := append(CmdToBytes("tx"), payload...)
 
+	fmt.Printf("Sending transaction %x to %s\n", tnx.ID, addr)
 	SendData(addr, request)
 }
 
@@ -237,7 +239,7 @@ func HandleInv(request []byte, chain *blockchain.BlockChain) {
 		log.Panic(err)
 	}
 
-	fmt.Printf("Recevied inventory with %d %s\n", len(payload.Items), payload.Type)
+	fmt.Printf("Received inventory with %d %s from %s\n", len(payload.Items), payload.Type, payload.AddrFrom)
 
 	if payload.Type == "block" {
 		blocksInTransit = payload.Items
@@ -247,7 +249,7 @@ func HandleInv(request []byte, chain *blockchain.BlockChain) {
 
 		newInTransit := [][]byte{}
 		for _, b := range blocksInTransit {
-			if bytes.Compare(b, blockHash) != 0 {
+			if !bytes.Equal(b, blockHash) {
 				newInTransit = append(newInTransit, b)
 			}
 		}
@@ -258,6 +260,7 @@ func HandleInv(request []byte, chain *blockchain.BlockChain) {
 		txID := payload.Items[0]
 
 		if memoryPool[hex.EncodeToString(txID)].ID == nil {
+			fmt.Printf("Requesting transaction %x from %s\n", txID, payload.AddrFrom)
 			SendGetData(payload.AddrFrom, "tx", txID)
 		}
 	}
@@ -321,16 +324,19 @@ func HandleTx(request []byte, chain *blockchain.BlockChain) {
 	tx := blockchain.DeserializeTransaction(txData)
 	memoryPool[hex.EncodeToString(tx.ID)] = tx
 
-	fmt.Printf("%s, %d", nodeAddress, len(memoryPool))
+	fmt.Printf("Received transaction %x from %s. Memory pool size: %d\n", tx.ID, payload.AddrFrom, len(memoryPool))
 
 	if nodeAddress == KnownNodes[0] {
+		fmt.Printf("Central node propagating transaction %x to other nodes\n", tx.ID)
 		for _, node := range KnownNodes {
 			if node != nodeAddress && node != payload.AddrFrom {
+				fmt.Printf("Propagating transaction %x to %s\n", tx.ID, node)
 				SendInv(node, "tx", [][]byte{tx.ID})
 			}
 		}
 	} else {
 		if len(memoryPool) >= 2 && len(mineAddress) > 0 {
+			fmt.Printf("Mining transactions from memory pool (size: %d)\n", len(memoryPool))
 			MineTx(chain)
 		}
 	}
