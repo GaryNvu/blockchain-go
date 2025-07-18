@@ -17,6 +17,8 @@ type UTXOSet struct {
 	Blockchain *BlockChain // Reference to the blockchain
 }
 
+// FindSpendableOutputs trouve les outputs non dépensés pour une adresse donnée jusqu'à atteindre le montant requis
+// Retourne le montant total trouvé et une map des transaction IDs avec leurs output indices
 func (u UTXOSet) FindSpendableOutputs(pubKeyHash []byte, amount int) (int, map[string][]int) {
 	unspentOuts := make(map[string][]int)
 	accumulated := 0
@@ -56,6 +58,8 @@ func (u UTXOSet) FindSpendableOutputs(pubKeyHash []byte, amount int) (int, map[s
 	return accumulated, unspentOuts
 }
 
+// FindUnspentTransactions trouve tous les outputs non dépensés pour une adresse donnée
+// Retourne une slice de tous les TXOutput appartenant à cette adresse
 func (u UTXOSet) FindUnspentTransactions(pubKeyHash []byte) []TXOutput {
 	var UTXOs []TXOutput
 
@@ -84,6 +88,7 @@ func (u UTXOSet) FindUnspentTransactions(pubKeyHash []byte) []TXOutput {
 	return UTXOs
 }
 
+// CountTransactions compte le nombre total de transactions dans le set UTXO
 func (u UTXOSet) CountTransactions() int {
 	db := u.Blockchain.Database
 	counter := 0
@@ -101,6 +106,8 @@ func (u UTXOSet) CountTransactions() int {
 	return counter
 }
 
+// Reindex reconstruit complètement le set UTXO en parcourant toute la blockchain
+// Supprime tous les anciens UTXOs et les recalcule depuis le début
 func (u UTXOSet) Reindex() {
 	db := u.Blockchain.Database
 
@@ -125,6 +132,8 @@ func (u UTXOSet) Reindex() {
 	Handle(err)
 }
 
+// Update met à jour le set UTXO avec les transactions d'un nouveau bloc
+// Supprime les outputs dépensés et ajoute les nouveaux outputs créés
 func (u *UTXOSet) Update(block *Block) {
 	db := u.Blockchain.Database
 
@@ -177,6 +186,8 @@ func (u *UTXOSet) Update(block *Block) {
 	Handle(err)
 }
 
+// DeleteByPrefix supprime toutes les clés de la base de données qui commencent par le préfixe donné
+// Utilisé pour nettoyer les anciens UTXOs lors de la réindexation
 func (u *UTXOSet) DeleteByPrefix(prefix []byte) {
 	deleteKeys := func(keysForDelete [][]byte) error {
 		if err := u.Blockchain.Database.Update(func(txn *badger.Txn) error {

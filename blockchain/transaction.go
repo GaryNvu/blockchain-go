@@ -15,12 +15,14 @@ import (
 	"strings"
 )
 
+// Transaction représente une transaction dans la blockchain
 type Transaction struct {
 	ID      []byte     // Unique identifier of the transaction
 	Inputs  []TXInput  // List of transaction inputs
 	Outputs []TXOutput // List of transaction outputs
 }
 
+// Serialize sérialise une transaction en bytes
 func (tx *Transaction) Serialize() []byte {
 	var encoded bytes.Buffer
 
@@ -31,6 +33,7 @@ func (tx *Transaction) Serialize() []byte {
 	return encoded.Bytes()
 }
 
+// DeserializeTransaction désérialise des bytes en transaction
 func DeserializeTransaction(data []byte) Transaction {
 	var transaction Transaction
 
@@ -40,6 +43,7 @@ func DeserializeTransaction(data []byte) Transaction {
 	return transaction
 }
 
+// Hash calcule le hash SHA256 d'une transaction
 func (tx *Transaction) Hash() []byte {
 	var hash [32]byte
 
@@ -51,7 +55,7 @@ func (tx *Transaction) Hash() []byte {
 	return hash[:]
 }
 
-// Create a coinbase transaction with the given recipient and optional data
+// CoinbaseTx crée une transaction coinbase (récompense de minage)
 func CoinbaseTx(to, data string) *Transaction {
 	if data == "" {
 		randData := make([]byte, 24)
@@ -68,10 +72,12 @@ func CoinbaseTx(to, data string) *Transaction {
 	return &tx
 }
 
+// IsCoinbase vérifie si une transaction est une transaction coinbase
 func (tx *Transaction) IsCoinbase() bool {
 	return len(tx.Inputs) == 1 && len(tx.Inputs[0].ID) == 0 && tx.Inputs[0].Out == -1
 }
 
+// Sign signe les entrées d'une transaction avec la clé privée donnée
 func (tx *Transaction) Sign(privKey ecdsa.PrivateKey, prevTXs map[string]Transaction) {
 	if tx.IsCoinbase() {
 		return
@@ -100,6 +106,7 @@ func (tx *Transaction) Sign(privKey ecdsa.PrivateKey, prevTXs map[string]Transac
 	}
 }
 
+// TrimmedCopy crée une copie de la transaction sans les signatures pour la signature
 func (tx *Transaction) TrimmedCopy() Transaction {
 	var inputs []TXInput
 	var outputs []TXOutput
@@ -117,6 +124,7 @@ func (tx *Transaction) TrimmedCopy() Transaction {
 	return txCopy
 }
 
+// Verify vérifie les signatures d'une transaction
 func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 	if tx.IsCoinbase() {
 		return true
@@ -151,7 +159,7 @@ func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 		y.SetBytes(in.PubKey[(keyLen / 2):])
 
 		rawPubKey := ecdsa.PublicKey{Curve: curve, X: &x, Y: &y}
-		if ecdsa.Verify(&rawPubKey, txCopy.ID, &r, &s) == false {
+		if !ecdsa.Verify(&rawPubKey, txCopy.ID, &r, &s) {
 			return false
 		}
 	}
@@ -159,6 +167,7 @@ func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 	return true
 }
 
+// NewTransaction crée une nouvelle transaction normale
 func NewTransaction(w *wallet.Wallet, to string, amount int, UTXO *UTXOSet) *Transaction {
 	var inputs []TXInput
 	var outputs []TXOutput
@@ -197,6 +206,7 @@ func NewTransaction(w *wallet.Wallet, to string, amount int, UTXO *UTXOSet) *Tra
 	return &tx
 }
 
+// String retourne une représentation string de la transaction
 func (tx *Transaction) String() string {
 	var lines []string
 	lines = append(lines, fmt.Sprintf("-- Transaction %x:", tx.ID))

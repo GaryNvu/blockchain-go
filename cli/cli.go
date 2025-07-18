@@ -14,6 +14,7 @@ import (
 
 type CommandLine struct{}
 
+// printUsage affiche l'aide des commandes disponibles
 func (cli *CommandLine) printUsage() {
 	fmt.Println("Usage:")
 	fmt.Println(" getbalance -address ADDRESS - get the balance for an address")
@@ -26,6 +27,7 @@ func (cli *CommandLine) printUsage() {
 	fmt.Println(" startnode -miner ADDRESS - Start a node with ID specified in NODE_ID env. var. -miner enables mining")
 }
 
+// validateArgs vérifie que des arguments ont été fournis
 func (cli *CommandLine) validateArgs() {
 	if len(os.Args) < 2 {
 		cli.printUsage()
@@ -33,6 +35,8 @@ func (cli *CommandLine) validateArgs() {
 	}
 }
 
+// StartNode démarre un nœud de la blockchain avec l'ID donné
+// Si minerAddress est fourni, active le mode mining pour ce nœud
 func (cli *CommandLine) StartNode(nodeID, minerAddress string) {
 	fmt.Printf("Starting Node %s\n", nodeID)
 
@@ -46,6 +50,7 @@ func (cli *CommandLine) StartNode(nodeID, minerAddress string) {
 	network.StartServer(nodeID, minerAddress)
 }
 
+// reindexUTXO reconstruit le set UTXO depuis la blockchain
 func (cli *CommandLine) reindexUTXO(nodeID string) {
 	chain := blockchain.ContinueBlockChain(nodeID)
 	defer chain.Database.Close()
@@ -56,6 +61,7 @@ func (cli *CommandLine) reindexUTXO(nodeID string) {
 	fmt.Printf("Done! There are %d transactions in the UTXO set.\n", count)
 }
 
+// listAddresses affiche toutes les adresses des wallets du nœud
 func (cli *CommandLine) listAddresses(nodeID string) {
 	wallets, _ := wallet.CreateWallets(nodeID)
 	addresses := wallets.GetAllAddresses()
@@ -66,6 +72,7 @@ func (cli *CommandLine) listAddresses(nodeID string) {
 
 }
 
+// createWallet crée un nouveau wallet pour le nœud
 func (cli *CommandLine) createWallet(nodeID string) {
 	wallets, _ := wallet.CreateWallets(nodeID)
 	address := wallets.AddWallet()
@@ -74,6 +81,7 @@ func (cli *CommandLine) createWallet(nodeID string) {
 	fmt.Printf("New address is: %s\n", address)
 }
 
+// printChain affiche tous les blocs de la blockchain
 func (cli *CommandLine) printChain(nodeID string) {
 	chain := blockchain.ContinueBlockChain(nodeID)
 	defer chain.Database.Close()
@@ -97,6 +105,7 @@ func (cli *CommandLine) printChain(nodeID string) {
 	}
 }
 
+// createBlockChain crée une nouvelle blockchain avec l'adresse genesis donnée
 func (cli *CommandLine) createBlockChain(address, nodeID string) {
 	if !wallet.ValidateAddress(address) {
 		log.Panic("Address is not Valid")
@@ -110,6 +119,7 @@ func (cli *CommandLine) createBlockChain(address, nodeID string) {
 	fmt.Println("Finished!")
 }
 
+// getBalance affiche le solde d'une adresse donnée
 func (cli *CommandLine) getBalance(address, nodeID string) {
 	if !wallet.ValidateAddress(address) {
 		log.Panic("Address is not Valid")
@@ -130,6 +140,8 @@ func (cli *CommandLine) getBalance(address, nodeID string) {
 	fmt.Printf("Balance of %s: %d\n", address, balance)
 }
 
+// send envoie des coins d'une adresse à une autre
+// Si mineNow est true, mine le bloc localement puis le propage
 func (cli *CommandLine) send(from, to string, amount int, nodeID string, mineNow bool) {
 	if !wallet.ValidateAddress(to) {
 		log.Panic("Address is not Valid")

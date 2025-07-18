@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 const (
@@ -115,7 +116,8 @@ func SendBlock(addr string, b *blockchain.Block) {
 }
 
 func SendData(addr string, data []byte) error {
-	conn, err := net.Dial(protocol, addr)
+	// Ajouter un timeout de 5 secondes pour éviter les blocages
+	conn, err := net.DialTimeout(protocol, addr, 5*time.Second)
 
 	if err != nil {
 		fmt.Printf("%s is not available\n", addr)
@@ -136,7 +138,7 @@ func SendData(addr string, data []byte) error {
 
 	_, err = io.Copy(conn, bytes.NewReader(data))
 	if err != nil {
-		log.Panic(err)
+		return fmt.Errorf("failed to send data: %v", err)
 	}
 
 	return nil
@@ -333,7 +335,8 @@ func HandleTx(request []byte, chain *blockchain.BlockChain) {
 			}
 		}
 	} else {
-		if len(memoryPool) >= 2 && len(mineAddress) > 0 {
+		if len(memoryPool) >= 1 && len(mineAddress) > 0 {
+			fmt.Printf("Mining triggered with %d transactions in pool\n", len(memoryPool))
 			MineTx(chain)
 		}
 	}
@@ -342,11 +345,19 @@ func HandleTx(request []byte, chain *blockchain.BlockChain) {
 func MineTx(chain *blockchain.BlockChain) {
 	var txs []*blockchain.Transaction
 
+	// Forcer la mise à jour des UTXOs avant validation
+	fmt.Println("Updating UTXO set before transaction validation...")
+	UTXOSet := blockchain.UTXOSet{chain}
+	UTXOSet.Reindex()
+
 	for id := range memoryPool {
 		fmt.Printf("tx: %s\n", memoryPool[id].ID)
 		tx := memoryPool[id]
 		if chain.VerifyTransaction(&tx) {
 			txs = append(txs, &tx)
+			fmt.Printf("Transaction %x is valid\n", tx.ID)
+		} else {
+			fmt.Printf("Transaction %x is invalid\n", tx.ID)
 		}
 	}
 
@@ -359,7 +370,6 @@ func MineTx(chain *blockchain.BlockChain) {
 	txs = append(txs, cbTx)
 
 	newBlock := chain.MineBlock(txs)
-	UTXOSet := blockchain.UTXOSet{chain}
 	UTXOSet.Reindex()
 
 	fmt.Println("New Block mined")

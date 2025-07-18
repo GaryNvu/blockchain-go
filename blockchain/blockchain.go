@@ -25,10 +25,12 @@ type BlockChain struct {
 	Database *badger.DB
 }
 
+// FindUTXOs trouve les UTXOs pour une adresse donnée (méthode non implémentée)
 func (chain *BlockChain) FindUTXOs(address string) any {
 	panic("unimplemented")
 }
 
+// DBExists vérifie si une base de données blockchain existe déjà dans le chemin donné
 func DBExists(path string) bool {
 	if _, err := os.Stat(path + "/MANIFEST"); os.IsNotExist(err) {
 		return false
@@ -37,6 +39,8 @@ func DBExists(path string) bool {
 	return true
 }
 
+// ContinueBlockChain ouvre une blockchain existante depuis la base de données
+// Retourne une instance BlockChain connectée à la base existante
 func ContinueBlockChain(nodeId string) *BlockChain {
 	path := fmt.Sprintf(dbPath, nodeId)
 	if !DBExists(path) {
@@ -71,6 +75,8 @@ func ContinueBlockChain(nodeId string) *BlockChain {
 	return &chain
 }
 
+// CreateBlockChain crée une nouvelle blockchain avec un bloc genesis
+// L'adresse fournie recevra la récompense du bloc genesis
 func CreateBlockChain(address, nodeId string) *BlockChain {
 	path := fmt.Sprintf(dbPath, nodeId)
 	if DBExists(path) {
@@ -105,6 +111,8 @@ func CreateBlockChain(address, nodeId string) *BlockChain {
 	return &blockchain
 }
 
+// AddBlock ajoute un nouveau bloc à la blockchain
+// Met à jour le dernier hash et sauvegarde le bloc dans la base de données
 func (chain *BlockChain) AddBlock(block *Block) {
 	err := chain.Database.Update(func(txn *badger.Txn) error {
 		if _, err := txn.Get(block.Hash); err == nil {
@@ -145,6 +153,7 @@ func (chain *BlockChain) AddBlock(block *Block) {
 	Handle(err)
 }
 
+// GetBestHeight retourne la hauteur du dernier bloc de la blockchain
 func (chain *BlockChain) GetBestHeight() int {
 	var lastBlock Block
 
@@ -174,6 +183,7 @@ func (chain *BlockChain) GetBestHeight() int {
 	return lastBlock.Height
 }
 
+// GetBlock récupère un bloc spécifique par son hash
 func (chain *BlockChain) GetBlock(blockHash []byte) (Block, error) {
 	var block Block
 
@@ -196,6 +206,7 @@ func (chain *BlockChain) GetBlock(blockHash []byte) (Block, error) {
 	return block, nil
 }
 
+// GetBlockHashes retourne tous les hashes des blocs de la blockchain
 func (chain *BlockChain) GetBlockHashes() [][]byte {
 	var blocks [][]byte
 
@@ -214,6 +225,8 @@ func (chain *BlockChain) GetBlockHashes() [][]byte {
 	return blocks
 }
 
+// MineBlock mine un nouveau bloc avec les transactions données
+// Vérifie les transactions, crée le bloc et l'ajoute à la blockchain
 func (chain *BlockChain) MineBlock(transactions []*Transaction) *Block {
 	var lastHash []byte
 	var lastHeight int
@@ -264,6 +277,8 @@ func (chain *BlockChain) MineBlock(transactions []*Transaction) *Block {
 	return newBlock
 }
 
+// FindUTXO trouve tous les outputs non dépensés dans la blockchain
+// Retourne une map avec les transaction IDs et leurs outputs disponibles
 func (chain *BlockChain) FindUTXO() map[string]TXOutputs {
 	UTXO := make(map[string]TXOutputs)
 	spentTXOs := make(map[string][]int)
@@ -303,6 +318,7 @@ func (chain *BlockChain) FindUTXO() map[string]TXOutputs {
 	return UTXO
 }
 
+// FindTransaction trouve une transaction par son ID dans toute la blockchain
 func (bc *BlockChain) FindTransaction(ID []byte) (Transaction, error) {
 	iter := bc.Iterator()
 
@@ -323,6 +339,7 @@ func (bc *BlockChain) FindTransaction(ID []byte) (Transaction, error) {
 	return Transaction{}, errors.New("Transaction does not exist")
 }
 
+// SignTransaction signe une transaction avec la clé privée donnée
 func (bc *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.PrivateKey) {
 	prevTXs := make(map[string]Transaction)
 
@@ -335,6 +352,8 @@ func (bc *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.PrivateKey)
 	tx.Sign(privKey, prevTXs)
 }
 
+// VerifyTransaction vérifie qu'une transaction est valide
+// Retourne true si la transaction est valide, false sinon
 func (bc *BlockChain) VerifyTransaction(tx *Transaction) bool {
 	if tx.IsCoinbase() {
 		return true

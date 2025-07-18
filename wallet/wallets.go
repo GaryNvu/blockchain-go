@@ -13,6 +13,7 @@ type Wallets struct {
 	Wallets map[string]*Wallet
 }
 
+// CreateWallets crée ou charge une collection de wallets pour un nœud donné
 func CreateWallets(nodeId string) (*Wallets, error) {
 	wallets := Wallets{}
 	wallets.Wallets = make(map[string]*Wallet)
@@ -22,10 +23,12 @@ func CreateWallets(nodeId string) (*Wallets, error) {
 	return &wallets, err
 }
 
+// GetWallet récupère un wallet spécifique par son adresse
 func (ws *Wallets) GetWallet(address string) Wallet {
 	return *ws.Wallets[address]
 }
 
+// GetAllAddresses retourne toutes les adresses des wallets
 func (ws *Wallets) GetAllAddresses() []string {
 	var addresses []string
 
@@ -36,6 +39,7 @@ func (ws *Wallets) GetAllAddresses() []string {
 	return addresses
 }
 
+// AddWallet crée un nouveau wallet et l'ajoute à la collection
 func (ws *Wallets) AddWallet() string {
 	wallet := MakeWallet()
 	address := fmt.Sprintf("%s", wallet.Address())
@@ -44,6 +48,7 @@ func (ws *Wallets) AddWallet() string {
 	return address
 }
 
+// LoadFile charge les wallets depuis un fichier
 func (ws *Wallets) LoadFile(nodeId string) error {
 	walletFile := fmt.Sprintf(walletFile, nodeId)
 	if _, err := os.Stat(walletFile); os.IsNotExist(err) {
@@ -72,6 +77,7 @@ func (ws *Wallets) LoadFile(nodeId string) error {
 	return nil
 }
 
+// SaveFile sauvegarde les wallets dans un fichier
 func (ws *Wallets) SaveFile(nodeId string) {
 	var content bytes.Buffer
 	walletFile := fmt.Sprintf(walletFile, nodeId)

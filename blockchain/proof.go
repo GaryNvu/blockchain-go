@@ -12,11 +12,13 @@ import (
 
 const Difficulty = 12
 
+// ProofOfWork représente un algorithme de preuve de travail pour miner des blocs
 type ProofOfWork struct {
 	Block  *Block
 	Target *big.Int
 }
 
+// NewProofOfWork crée une nouvelle instance de preuve de travail pour un bloc
 func NewProofOfWork(b *Block) *ProofOfWork {
 	target := big.NewInt(1)
 	target.Lsh(target, uint(256-Difficulty))
@@ -25,6 +27,7 @@ func NewProofOfWork(b *Block) *ProofOfWork {
 	return pow
 }
 
+// InitData prépare les données à hasher pour la preuve de travail
 func (pow *ProofOfWork) InitData(nonce int) []byte {
 	data := bytes.Join(
 		[][]byte{
@@ -38,6 +41,7 @@ func (pow *ProofOfWork) InitData(nonce int) []byte {
 	return data
 }
 
+// ToHex convertit un nombre en représentation hexadécimale
 func ToHex(num int64) []byte {
 	buff := new(bytes.Buffer)
 	err := binary.Write(buff, binary.BigEndian, num)
@@ -48,6 +52,7 @@ func ToHex(num int64) []byte {
 	return buff.Bytes()
 }
 
+// Run exécute l'algorithme de preuve de travail pour trouver un nonce valide
 func (pow *ProofOfWork) Run() (int, []byte) {
 	var intHash big.Int
 	var hash [32]byte
@@ -71,6 +76,7 @@ func (pow *ProofOfWork) Run() (int, []byte) {
 	return nonce, hash[:]
 }
 
+// Validate vérifie qu'un bloc a une preuve de travail valide
 func (pow *ProofOfWork) Validate() bool {
 	var intHash big.Int
 	data := pow.InitData(pow.Block.Nonce)

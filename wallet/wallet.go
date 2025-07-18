@@ -30,7 +30,7 @@ type SerializableWallet struct {
 	PublicKey   []byte `gob:"public_key"`
 }
 
-// Convertit un Wallet en structure sérialisable
+// ToSerializable convertit un Wallet en structure sérialisable
 func (w *Wallet) ToSerializable() SerializableWallet {
 	return SerializableWallet{
 		PrivateKeyD: w.PrivateKey.D.Bytes(),
@@ -40,7 +40,7 @@ func (w *Wallet) ToSerializable() SerializableWallet {
 	}
 }
 
-// Crée un Wallet à partir d'une structure sérialisable
+// FromSerializable crée un Wallet à partir d'une structure sérialisable
 func FromSerializable(sw SerializableWallet) *Wallet {
 	curve := elliptic.P256()
 
@@ -68,6 +68,7 @@ func FromSerializable(sw SerializableWallet) *Wallet {
 	}
 }
 
+// Address génère l'adresse publique du wallet en encodant la clé publique
 func (w Wallet) Address() []byte {
 	pubHash := PublicKeyHash(w.PublicKey)
 
@@ -79,6 +80,7 @@ func (w Wallet) Address() []byte {
 	return address
 }
 
+// ValidateAddress vérifie qu'une adresse est valide en validant son checksum
 func ValidateAddress(address string) bool {
 	pubKeyHash := Base58Decode([]byte(address))                        // Decode the address from base58
 	actualChecksum := pubKeyHash[len(pubKeyHash)-checkSumLen:]         // Extract the checksum from the address
@@ -89,8 +91,7 @@ func ValidateAddress(address string) bool {
 	return bytes.Compare(actualChecksum, targetChecksum) == 0 // Compare the actual checksum with the target checksum
 }
 
-// NewKeyPair generates a new ECDSA key pair and returns the private key and public key
-// The public key is represented as a byte slice containing the X and Y coordinates of the elliptic curve point
+// NewKeyPair génère une nouvelle paire de clés ECDSA (privée et publique)
 func NewKeyPair() (ecdsa.PrivateKey, []byte) {
 	curve := elliptic.P256()
 
@@ -103,6 +104,7 @@ func NewKeyPair() (ecdsa.PrivateKey, []byte) {
 	return *private, pub
 }
 
+// MakeWallet crée un nouveau wallet avec une paire de clés générée
 func MakeWallet() *Wallet {
 	private, public := NewKeyPair()
 	wallet := Wallet{private, public}
@@ -110,7 +112,7 @@ func MakeWallet() *Wallet {
 	return &wallet
 }
 
-// Hash the public key using SHA-256 followed by RIPEMD-160
+// PublicKeyHash calcule le hash de la clé publique (SHA256 + RIPEMD160)
 func PublicKeyHash(publicKey []byte) []byte {
 	pubHash := sha256.Sum256(publicKey)
 	hasher := ripemd160.New()
@@ -124,6 +126,7 @@ func PublicKeyHash(publicKey []byte) []byte {
 	return publicRipMD
 }
 
+// checksum calcule le checksum d'un payload (double SHA256)
 func checksum(payload []byte) []byte {
 	firstHash := sha256.Sum256(payload)
 	secondHash := sha256.Sum256(firstHash[:])

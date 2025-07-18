@@ -16,6 +16,20 @@ Ce projet implémente une blockchain complète en Go avec support multi-nœuds, 
 - ✅ UTXO set pour optimiser les performances
 - ✅ Interface CLI complète
 
+## Structure du projet
+
+```
+blockchain-go/
+├── blockchain/          # Core blockchain logic
+├── cli/                # Interface en ligne de commande
+├── network/            # Logique réseau et propagation
+├── wallet/             # Gestion des wallets et cryptographie
+├── tmp/                # Données temporaires (wallets et blocks)
+├── setup_blockchain.ps1 # Script de configuration (Windows)
+├── setup_blockchain.sh  # Script de configuration (Linux/macOS)
+└── main.go             # Point d'entrée principal
+```
+
 ## Prérequis
 
 - Go 1.19 ou plus récent
@@ -143,17 +157,3 @@ Pour arrêter proprement les nœuds, utilisez `Ctrl+C` dans chaque terminal. Les
 - `printchain` - Afficher tous les blocs
 - `reindexutxo` - Reconstruire l'UTXO set
 - `startnode [-miner ADDRESS]` - Démarrer un nœud réseau
-
-## Structure du projet
-
-```
-blockchain-go/
-├── blockchain/          # Core blockchain logic
-├── cli/                # Interface en ligne de commande
-├── network/            # Logique réseau et propagation
-├── wallet/             # Gestion des wallets et cryptographie
-├── tmp/                # Données temporaires (wallets et blocks)
-├── setup_blockchain.ps1 # Script de configuration (Windows)
-├── setup_blockchain.sh  # Script de configuration (Linux/macOS)
-└── main.go             # Point d'entrée principal
-```
